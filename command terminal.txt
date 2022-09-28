@@ -1,0 +1,235 @@
+conda config --add channels default
+conda config --add channels bioconda
+conda config --add channels conda-forge
+
+conda create -n workshop mamba python=3.9
+
+conda activate workshop
+
+mamba install fastqc fastp nanoplot pycoqc filtlong minimap2 samtools bcftools igv pangolin president snpeff bamclipper freebayes
+
+# Illumina
+wget --no-check-certificate https://osf.io/86ubg/download -O illumina.R1.fastq.gz
+wget --no-check-certificate https://osf.io/vgr3k/download -O illumina.R2.fastq.gz
+
+# Nanopore
+wget --no-check-certificate https://osf.io/kf54a/download -O SARSCoV2-nanopore.fastq.gz
+
+ILLUMINA_SAMPLE1='illumina.R1.fastq.gz'
+ILLUMINA_SAMPLE2='illumina.R2.fastq.gz'
+NANOPORE_SAMPLE='nanopore.fastq.gz'
+
+
+#FASTQ quality control 
+Illumina
+
+conda activate workshop
+
+fastqc -t 4 $ILLUMINA_SAMPLE1 $ILLUMINA_SAMPLE2
+
+fastp -i $ILLUMINA_SAMPLE1 -I $ILLUMINA_SAMPLE2 -o clean_reads.R1.fastq.gz -O clean_reads.R2.fastq.gz --thread 4 --qualified_quality_phred 20 --length_required 50
+
+fastqc -t 2 clean_reads.R{1,2}.fastq.gz
+
+
+Nanopore
+
+conda activate workshop
+
+NanoPlot -t 4 --fastq $NANOPORE_SAMPLE -o nanoplot/raw 
+
+NanoPlot -t 4 --fastq $NANOPORE_SAMPLE --title "Raw reads" \
+    --color darkslategrey --N50 --loglength -o nanoplot/raw 
+
+Length filtering
+
+filtlong --min_length 300 --max_length 600 $NANOPORE_SAMPLE | gzip - > clean_reads_nanopore.fastq.gz
+
+NanoPlot -t 4 --fastq clean_reads_nanopore.fastq.gz --title "Filtered reads" \
+    --color darkslategrey --N50 --loglength -o nanoplot/clean 
+
+
+
+Mapping & visualization
+
+wget https://raw.githubusercontent.com/replikation/poreCov/master/data/external_primer_schemes/nCoV-2019/V1200/nCoV-2019.reference.fasta
+
+# we also download an index for later usage
+
+wget https://raw.githubusercontent.com/replikation/poreCov/master/data/external_primer_schemes/nCoV-2019/V1200/nCoV-2019.reference.fasta.fai
+
+
+
+
+Mapping
+
+# Illumina
+minimap2 -x sr -t 4 -a -o minimap2-illumina.sam reference.fasta clean_reads.R1.fastq.gz clean_reads.R2.fastq.gz
+
+# Nanopore
+
+minimap2 -x map-ont -t 4 -a -o minimap2-nanopore.sam nCoV-2019.reference.fasta clean_reads_nanopore.fastq.gz
+
+
+Process mapping results
+
+for SAM in minimap2-illumina.sam minimap2-nanopore.sam; do
+
+    # get the basename of the input SAM
+    BN=$(basename $SAM .sam)
+
+    # 1) convert SAM to BAM --> check the file size after convert!
+    samtools view -bS $SAM > $BN.bam
+
+    # 2) sort the BAM
+    samtools sort $BN.bam > $BN.sorted.bam
+
+    # 3) index the BAM
+    samtools index $BN.sorted.bam
+done
+
+
+
+Look at the mapped reads
+
+igv &
+
+
+
+Primer clipping
+
+Illumina
+
+# First, we download the primer BED scheme for Cleanplex scheme that was used
+# Change to another BED file if needed!
+wget --no-check-certificate https://osf.io/3hkd5/download -O cleanplex.amplicons.bedpe
+
+head reference.fasta
+head cleanplex.amplicons.bedpe
+
+
+sed 's/NC_045512.2/MN908947.3/g' cleanplex.amplicons.bedpe > cleanplex-corrected.amplicons.bedpe
+
+
+# check again
+head reference.fasta
+head cleanplex-corrected.amplicons.bedpe
+
+bamclipper.sh -b minimap2-illumina.sorted.bam -p cleanplex-corrected.amplicons.bedpe -n 4
+
+
+Nanopore
+
+# First, we download the primer BED scheme for the ARTIC V1200 scheme
+# Change to another BED file if needed!
+wget https://raw.githubusercontent.com/replikation/poreCov/master/data/external_primer_schemes/nCoV-2019/V1200/nCoV-2019.bed
+
+head reference.fasta
+head nCoV-2019.bed
+
+wget https://raw.githubusercontent.com/hoelzer/bed2bedpe/master/primerbed2bedpe.py
+
+python primerbed2bedpe.py nCoV-2019.bed --forward_identifier _LEFT --reverse_identifier _RIGHT -o nCoV-2019.bedpe
+
+bamclipper.sh -b minimap2-nanopore.sorted.bam -p nCoV-2019.bedpe -n 4
+
+
+
+Variant calling
+
+Illumina
+
+samtools faidx reference.fasta
+
+
+freebayes -f reference.fasta --min-alternate-count 10 \
+--min-alternate-fraction 0.1 --min-coverage 20 --pooled-continuous \
+--haplotype-length -1 minimap2-illumina.sorted.primerclipped.bam > freebayes-illumina.vcf
+
+
+Nanopore
+
+conda create -n medaka mamba python=3.6
+
+conda activate medaka
+
+mamba install -c bioconda medaka
+
+
+Call variants with Medaka
+
+medaka consensus --model r941_min_hac_g507 --threads 4 --chunk_len 800 --chunk_ovlp 400 minimap2-nanopore.sorted.primerclipped.bam medaka-nanopore.consensus.hdf
+
+# actually call the variants
+medaka variant reference.fasta medaka-nanopore.consensus.hdf medaka-nanopore.vcf
+
+# annotate VCF with read depth info etc. so we can filter it
+medaka tools annotate medaka-nanopore.vcf reference.fasta minimap2-nanopore.sorted.primerclipped.bam medaka-nanopore.annotate.vcf
+
+
+
+
+Consensus generation
+
+Illumina & Nanopore
+
+
+
+conda activate workshop
+
+bgzip -f medaka-nanopore.annotate.vcf
+
+tabix -f -p vcf medaka-nanopore.annotate.vcf.gz
+
+
+bcftools consensus -f reference.fasta medaka-nanopore.annotate.vcf.gz -o consensus-nanopore.fasta
+
+# rename the consensus FASTA, right now the FASTA ID is still the reference
+sed -i 's/MN908947.3/Consensus-Nanopore/g' consensus-nanopore.fasta
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
