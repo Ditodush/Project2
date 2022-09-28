@@ -40,9 +40,26 @@ The following tools will be used. We will discuss them in detail.
 - Pangolin (Illumina & Nanopore)
 
 
-```
+We decided to use mamba as an updated version of conda. It will help to speed up the process. 
+
 
 ```
+# at the first step we config some channels
+conda config --add channels default
+conda config --add channels bioconda
+conda config --add channels conda-forge
+
+# now we create a new environment and only install mamba in it and a specific python version 
+conda create -n workshop mamba python=3.9
+# then we activate the environment
+conda activate workshop
+# ... and use mamba to install all tools
+mamba install fastqc fastp nanoplot pycoqc filtlong minimap2 samtools bcftools igv pangolin president snpeff bamclipper freebayes
+
+```
+
+
+
 
 
 
