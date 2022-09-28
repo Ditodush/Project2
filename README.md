@@ -58,7 +58,32 @@ mamba install fastqc fastp nanoplot pycoqc filtlong minimap2 samtools bcftools i
 
 ```
 
+## Input data
 
+```
+- Illumina
+
+- Nanopore
+
+```
+
+
+### With a following command we set now variables.
+
+```
+ILLUMINA_SAMPLE1='illumina.R1.fastq.gz'
+ILLUMINA_SAMPLE2='illumina.R2.fastq.gz'
+NANOPORE_SAMPLE='nanopore.fastq.gz'
+```
+
+## FASTQ quality control
+
+```
+# activate the conda environment
+conda activate workshop
+
+fastqc -t 4 $ILLUMINA_SAMPLE1 $ILLUMINA_SAMPLE2
+```
 
 
 
