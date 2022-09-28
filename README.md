@@ -85,6 +85,45 @@ conda activate workshop
 fastqc -t 4 $ILLUMINA_SAMPLE1 $ILLUMINA_SAMPLE2
 ```
 
+After the above command, we can check the HTML output file.
+
+Next our goal is to quality-trim the Illumina reads to get rid of low-quality base calls especially at the end of reads.
+
+### Quality trimming
+
+```
+fastp -i $ILLUMINA_SAMPLE1 -I $ILLUMINA_SAMPLE2 -o clean_reads.R1.fastq.gz -O clean_reads.R2.fastq.gz --thread 4 --qualified_quality_phred 20 
+
+fastqc -t 2 clean_reads.R{1,2}.fastq.gz
+```
 
 
+### Nanopore
 
+- NanoPlot
+
+#### Quality assessment
+
+```
+# activate the conda environment
+conda activate workshop
+
+# run NanoPlot on your FASTQ file
+NanoPlot -t 4 --fastq $NANOPORE_SAMPLE -o nanoplot/raw 
+    
+# run NanoPlot on your FASTQ file with some more parameters
+NanoPlot -t 4 --fastq $NANOPORE_SAMPLE --title "Raw reads" \
+    --color darkslategrey --N50 --loglength -o nanoplot/raw 
+```
+
+###Length filtering
+
+- filtlong
+
+```
+# Here we need to write wy we change a length .... 
+filtlong --min_length 300 --max_length 600 $NANOPORE_SAMPLE | gzip - > clean_reads_nanopore.fastq.gz
+
+NanoPlot -t 4 --fastq clean_reads_nanopore.fastq.gz --title "Filtered reads" \
+    --color darkslategrey --N50 --loglength -o nanoplot/clean 
+```
