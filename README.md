@@ -1,4 +1,9 @@
 
+## Authors
+
+
+Maha Abdelrhman, Dimitri Dushuashvili
+
 # Project2
 
 SARS-CoV-2 genome assembly from Illumina & ONT reads
