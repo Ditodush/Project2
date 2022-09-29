@@ -13,7 +13,7 @@ In the following project our goal is to construct a genome sequence using a refe
 
 By the end of the project we will generate a SARS-CoV-2 consensus genome file from FASTQ raw sequencing data. 
 
-The following tools will be used. We will discuss them in detail.
+The following tools will be used. We will discuss them in detail below.
 
 ### QC
 
