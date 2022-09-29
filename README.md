@@ -13,7 +13,7 @@ In the following project our goal is to construct a genome sequence using a refe
 
 By the end of the project we will generate a SARS-CoV-2 consensus genome file from FASTQ raw sequencing data. 
 
-The following tools will be used. We will discuss them in detail below.
+The following tools will be used. We will discuss them in detail.
 
 ### QC
 
@@ -57,15 +57,13 @@ mamba install fastqc fastp nanoplot pycoqc filtlong minimap2 samtools bcftools i
 
 ## Input data
 
-```
-- Illumina
-
-- Nanopore
-
-```
+From the following link example data for one SARS-CoV-2 sample can be found. The same sample was sequenced with Illumina and Nanopore. Sequencing strategies and information on the used primer kits are provided in the subfolders. 
+The corresponding BED files can be for example found here: https://github.com/artic-network/artic-ncov2019/tree/master/primer_schemes/nCoV-2019
 
 
-### With a following command we set now variables.
+
+
+With a following command we set now variables.
 
 ```
 ILLUMINA_SAMPLE1='illumina.R1.fastq.gz'
@@ -93,7 +91,7 @@ fastp -i $ILLUMINA_SAMPLE1 -I $ILLUMINA_SAMPLE2 -o clean_reads.R1.fastq.gz -O cl
 
 fastqc -t 2 clean_reads.R{1,2}.fastq.gz
 ```
-We decide not to use length required command.
+We decide not to use length required command, becouse the thength of the sequences are almoost 50bp.
 
 After running above line we can check how did the quality changed.
 
@@ -128,7 +126,7 @@ NanoPlot -t 4 --fastq $NANOPORE_SAMPLE --title "Raw reads" \
 # the example nanopore reads were sequenced with the ARTIC V4.1 kit
 
 # Here we need to write wy we change a length .... 
-filtlong --min_length 400 --max_length 600 $NANOPORE_SAMPLE | gzip - > clean_reads_nanopore.fastq.gz
+filtlong --min_length 300 --max_length 600 $NANOPORE_SAMPLE | gzip - > clean_reads_nanopore.fastq.gz
 
 NanoPlot -t 4 --fastq clean_reads_nanopore.fastq.gz --title "Filtered reads" \
     --color darkslategrey --N50 --loglength -o nanoplot/clean 
@@ -219,13 +217,13 @@ Reference FASTA, previously used for the mapping, was loaded and the sorted BAM 
 # It's important that the FASTA header of the reference genome 
 # and the IDs in the BED file match, let's check:
 head reference.fasta
-head v3.amplicons.bedpe
+head cleanplex.amplicons.bedpe
 
 # It may be that they dont match! 
 # In the reference FASTA: 'MN908947.3'
 # In the BED file: 'NC_045512.2'
 # So we need to replace the ID in the BED file, e.g. via
-sed 's/NC_045512.2/MN908947.3/g' v3.amplicons.bedpe > cleanplex-corrected.amplicons.bedpe
+sed 's/NC_045512.2/MN908947.3/g' cleanplex.amplicons.bedpe > cleanplex-corrected.amplicons.bedpe
 
 # check again
 head reference.fasta
@@ -243,17 +241,17 @@ bamclipper.sh -b minimap2-illumina.sorted.bam -p cleanplex-corrected.amplicons.b
 # It's important that the FASTA header of the reference genome 
 # and the IDs in the BED file match, let's check:
 head reference.fasta
-head primer.bed
+head nCoV-2019.bed
 
 # now we convert this BED file into a BEDPE file needed by BAMclipper.
 # The Illumina BED file we used above was already in the correct BEDPE format.
 # we download a python script to do so:
 wget https://
 # and run it
-python primerbed2bedpe.py primer.bed --forward_identifier _LEFT --reverse_identifier _RIGHT -o v4.bedpe
+python primerbed2bedpe.py nCoV-2019.bed --forward_identifier _LEFT --reverse_identifier _RIGHT -o nCoV-2019.bedpe
 
 # now we can use BAMclipper - finally
-bamclipper.sh -b minimap2-nanopore.sorted.bam -p v4.bedpe -n 4
+bamclipper.sh -b minimap2-nanopore.sorted.bam -p nCoV-2019.bedpe -n 4
 ```
 
 
@@ -286,7 +284,7 @@ Medaka will be used for variant calling. Because of dependency issues it would n
 Seperate environment will be used for it.
 ```
 # first, we create a new env named 'medaka' and install 'mamba' and a specific version of python needed by 'medaka'
-conda create -n medaka mamba python=3.8
+conda create -n medaka mamba python=3.6
 
 # we activate the env
 conda activate medaka
@@ -302,7 +300,7 @@ mamba install -c bioconda medaka
 # first generate a file with information about potential variants
 # considering the used basecalling model. You should use the matching
 # model from your Guppy basecalling settings!
-medaka consensus --model r941_min_high_g360 --threads 4 --chunk_len 800 --chunk_ovlp 400 minimap2-nanopore.sorted.primerclipped.bam medaka-nanopore.consensus.hdf
+medaka consensus --model r941_min_hac_g507 --threads 4 --chunk_len 800 --chunk_ovlp 400 minimap2-nanopore.sorted.primerclipped.bam medaka-nanopore.consensus.hdf
 
 # actually call the variants
 medaka variant reference.fasta medaka-nanopore.consensus.hdf medaka-nanopore.vcf
@@ -313,7 +311,7 @@ medaka tools annotate medaka-nanopore.vcf reference.fasta minimap2-nanopore.sort
 
 ## Consensus generation
 
-#### Nanopore
+#### Illumina & Nanopore
 
 ```
 # switch to the workshop env 
@@ -331,25 +329,5 @@ bcftools consensus -f reference.fasta medaka-nanopore.annotate.vcf.gz -o consens
 
 # rename the consensus FASTA, right now the FASTA ID is still the reference
 sed -i 's/MN908947.3/Consensus-Nanopore/g' consensus-nanopore.fasta
-
-#### Illumina
-
-# compress the annotated VCF file (needed for the next steps)
-bgzip -f freebayes-illumina.vcf
-
-# index a TAB-delimited genome position file in bgz format
-# and create an index file
-tabix -f -p vcf freebayes-illumina.vcf.gz
-
-# generate the consensus
-bcftools consensus -f reference.fasta freebayes-illumina.vcf.gz -o consensus-illumina.fasta
-
-# rename the consensus FASTA, right now the FASTA ID is still the reference
-sed -i 's/NC_045512.2/Consensus-illumina/g' consensus-illumina.fasta
-
-
-
-
-
 ```
 
