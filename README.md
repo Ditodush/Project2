@@ -332,7 +332,8 @@ bcftools consensus -f reference.fasta medaka-nanopore.annotate.vcf.gz -o consens
 # rename the consensus FASTA, right now the FASTA ID is still the reference
 sed -i 's/MN908947.3/Consensus-Nanopore/g' consensus-nanopore.fasta
 
-### Illumina
+#### Illumina
+
 # compress the annotated VCF file (needed for the next steps)
 bgzip -f freebayes-illumina.vcf
 
