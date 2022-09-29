@@ -9,7 +9,7 @@ Maha Abdelrhman, Dimitri Dushuashvili
 ## Overview
 
 
-In the following project our goal is to construct a genome sequence using a reference-based approach. For this purpose we will go thrue the basic tools and commands. It will give as appartunity to process Illumina and Nanopore sequencing data.
+In the following project our goal is to construct a genome sequence using a reference-based approach. For this purpose we will go through the basic tools and commands. It will give as appartunity to process Illumina and Nanopore sequencing data.
 
 By the end of the project we will generate a SARS-CoV-2 consensus genome file from FASTQ raw sequencing data. 
 
