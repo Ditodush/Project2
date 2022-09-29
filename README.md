@@ -35,9 +35,6 @@ The following tools will be used. We will discuss them in detail.
 - freebayes (Illumina)
 - BCFtools (Illumina & Nanopore)
  
-### Lineage annotation
-
-- Pangolin (Illumina & Nanopore)
 
 
 We decided to use mamba as an updated version of conda. It will help to speed up the process. 
@@ -127,3 +124,15 @@ filtlong --min_length 300 --max_length 600 $NANOPORE_SAMPLE | gzip - > clean_rea
 NanoPlot -t 4 --fastq clean_reads_nanopore.fastq.gz --title "Filtered reads" \
     --color darkslategrey --N50 --loglength -o nanoplot/clean 
 ```
+
+### Mapping & visualization
+
+#### Illumina & Nanopore
+- minimap2
+- SAMtools
+- IGV
+
+
+
+SARS-CoV-2 reference sequence will be used in FASTA format to map against. File was downloaded from the following link
+
