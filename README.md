@@ -128,7 +128,7 @@ NanoPlot -t 4 --fastq $NANOPORE_SAMPLE --title "Raw reads" \
 # the example nanopore reads were sequenced with the ARTIC V4.1 kit
 
 # Here we need to write wy we change a length .... 
-filtlong --min_length 300 --max_length 600 $NANOPORE_SAMPLE | gzip - > clean_reads_nanopore.fastq.gz
+filtlong --min_length 400 --max_length 600 $NANOPORE_SAMPLE | gzip - > clean_reads_nanopore.fastq.gz
 
 NanoPlot -t 4 --fastq clean_reads_nanopore.fastq.gz --title "Filtered reads" \
     --color darkslategrey --N50 --loglength -o nanoplot/clean 
