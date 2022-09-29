@@ -136,3 +136,23 @@ NanoPlot -t 4 --fastq clean_reads_nanopore.fastq.gz --title "Filtered reads" \
 
 SARS-CoV-2 reference sequence will be used in FASTA format to map against. File was downloaded from the following link
 
+https://www.ncbi.nlm.nih.gov/nuccore/MN908947.3
+
+
+
+There are a tools (e.g. BWA-MEM) for the short-read alignment, which may perform better then minimap2, but we decide to use only one tool for the both, Illuminda and Nanopore data.
+
+
+```
+# map the filtered reads to the reference genome
+
+# Illumina
+minimap2 -x sr -t 4 -a -o minimap2-illumina.sam reference.fasta clean_reads.R1.fastq.gz clean_reads.R2.fastq.gz
+
+# Nanopore
+minimap2 -x map-ont -t 4 -a -o minimap2-nanopore.sam reference.fasta clean_reads_nanopore.fastq.gz
+```
+
+
+Different parameter settings were used for Illumina and Nanopore data.
+
